@@ -216,7 +216,7 @@ namespace OverPass
                 {
                     List<NetTopologySuite.Features.Feature>? featuresWithBuffer = features.Select(f =>
                     {
-                        f.Geometry = f.Geometry.Buffer(this.Buffer * 0.00001, 8);
+                        f.Geometry = f.Geometry.Buffer(this.Buffer, 8);
                         return f;
                     }).ToList();
                     return featuresWithBuffer;

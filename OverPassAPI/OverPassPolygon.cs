@@ -2,70 +2,61 @@
 
 public class OverPassPolygon : OverPassLine
 {
-    public OverPassPolygon(string bbox) : base(bbox)
-    {
-    }
+    public OverPassPolygon(TagType type) : base(type) { }
 
-    public OverPassPolygon(string bbox, Dictionary<string, List<string>>? query) : base(bbox, query)
+    public override void SetFilter(OverPassParameters parameters)
     {
-    }
-
-    public OverPassPolygon(string bbox, TagType type) : base(bbox)
-    {
-        this.Type = type;
+        this.Parameters = parameters;
         this.Tags = new();
         List<OTag> list = new List<OTag>();
         switch (this.Type)
         {
             case TagType.BUILDINGS:
-                this.AllTags.Add(new(this.BBox, "building", "*"));
+                list.Add(new(parameters.BBox, "building", "*"));
                 break;
             case TagType.LANDUSE:
-                list.Add(new(this.BBox, "landuse", "*"));
-                list.Add(new(this.BBox, "natural", "*"));
-                list.Add(new(this.BBox, "leisure", "*"));
-                list.Add(new(this.BBox, "boundary", "*"));
-                list.Add(new(this.BBox, "landuse", "forest"));
-                list.Add(new(this.BBox, "natural", "wood"));
-                list.Add(new(this.BBox, "leisure", "park"));
-                list.Add(new(this.BBox, "leisure", "common"));
-                list.Add(new(this.BBox, "landuse", "residential"));
-                list.Add(new(this.BBox, "landuse", "industrial"));
-                list.Add(new(this.BBox, "landuse", "cemetery"));
-                list.Add(new(this.BBox, "landuse", "allotments"));
-                list.Add(new(this.BBox, "landuse", "meadown"));
-                list.Add(new(this.BBox, "landuse", "commercial"));
-                list.Add(new(this.BBox, "leisure", "nature_reserve"));
-                list.Add(new(this.BBox, "leisure", "recreation_ground"));
-                list.Add(new(this.BBox, "leisure", "retail"));
-                list.Add(new(this.BBox, "landuse", "military"));
-                list.Add(new(this.BBox, "landuse", "quarry"));
-                list.Add(new(this.BBox, "landuse", "orchad"));
-                list.Add(new(this.BBox, "landuse", "vineyard"));
-                list.Add(new(this.BBox, "landuse", "scrub"));
-                list.Add(new(this.BBox, "landuse", "grass"));
-                list.Add(new(this.BBox, "natural", "health"));
-                list.Add(new(this.BBox, "boundary", "national_park"));
-                list.Add(new(this.BBox, "landuse", "farmland"));
-                list.Add(new(this.BBox, "landuse", "farmyard"));
+                list.Add(new(parameters.BBox, "landuse", "*"));
+                list.Add(new(parameters.BBox, "natural", "*"));
+                list.Add(new(parameters.BBox, "leisure", "*"));
+                list.Add(new(parameters.BBox, "boundary", "*"));
+                list.Add(new(parameters.BBox, "landuse", "forest"));
+                list.Add(new(parameters.BBox, "natural", "wood"));
+                list.Add(new(parameters.BBox, "leisure", "park"));
+                list.Add(new(parameters.BBox, "leisure", "common"));
+                list.Add(new(parameters.BBox, "landuse", "residential"));
+                list.Add(new(parameters.BBox, "landuse", "industrial"));
+                list.Add(new(parameters.BBox, "landuse", "cemetery"));
+                list.Add(new(parameters.BBox, "landuse", "allotments"));
+                list.Add(new(parameters.BBox, "landuse", "meadown"));
+                list.Add(new(parameters.BBox, "landuse", "commercial"));
+                list.Add(new(parameters.BBox, "leisure", "nature_reserve"));
+                list.Add(new(parameters.BBox, "leisure", "recreation_ground"));
+                list.Add(new(parameters.BBox, "leisure", "retail"));
+                list.Add(new(parameters.BBox, "landuse", "military"));
+                list.Add(new(parameters.BBox, "landuse", "quarry"));
+                list.Add(new(parameters.BBox, "landuse", "orchad"));
+                list.Add(new(parameters.BBox, "landuse", "vineyard"));
+                list.Add(new(parameters.BBox, "landuse", "scrub"));
+                list.Add(new(parameters.BBox, "landuse", "grass"));
+                list.Add(new(parameters.BBox, "natural", "health"));
+                list.Add(new(parameters.BBox, "boundary", "national_park"));
+                list.Add(new(parameters.BBox, "landuse", "farmland"));
+                list.Add(new(parameters.BBox, "landuse", "farmyard"));
                 break;
             case TagType.WATER:
-                list.Add(new(this.BBox, "natural", "*"));
-                list.Add(new(this.BBox, "landuse", "*"));
-                list.Add(new(this.BBox, "waterway", "*"));
-                list.Add(new(this.BBox, "natural", "water"));
-                list.Add(new(this.BBox, "landuse", "reservoir"));
-                list.Add(new(this.BBox, "waterway", "riverbank"));
-                list.Add(new(this.BBox, "waterway", "dock"));
-                list.Add(new(this.BBox, "natural", "glacier"));
-                list.Add(new(this.BBox, "natural", "wetland"));
+                list.Add(new(parameters.BBox, "natural", "*"));
+                list.Add(new(parameters.BBox, "landuse", "*"));
+                list.Add(new(parameters.BBox, "waterway", "*"));
+                list.Add(new(parameters.BBox, "natural", "water"));
+                list.Add(new(parameters.BBox, "landuse", "reservoir"));
+                list.Add(new(parameters.BBox, "waterway", "riverbank"));
+                list.Add(new(parameters.BBox, "waterway", "dock"));
+                list.Add(new(parameters.BBox, "natural", "glacier"));
+                list.Add(new(parameters.BBox, "natural", "wetland"));
                 break;
         }
 
         this.Tags.Add(this.Type, list);
     }
-
-    public OverPassPolygon(string bbox, TagType type, Dictionary<string, List<string>>? query) : this(bbox, type) => this.Query = query;
-    public OverPassPolygon(string bbox, TagType type, Dictionary<string, List<string>>? query, string? overpassUrl) : this(bbox, type, query) => this.OverPassUrl = overpassUrl;
 }
 

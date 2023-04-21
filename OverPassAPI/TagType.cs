@@ -5,8 +5,6 @@ namespace OverPass
 {
     public enum TagType
     {
-        [Description("All tags")]
-        ALL,
         /** Points */
         [Description("Location for cities, towns, etc. Typically somewhere in the centre of the town")]
         PLACES,

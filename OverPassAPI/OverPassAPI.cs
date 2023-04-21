@@ -3,77 +3,100 @@
 using System.Globalization;
 using OverPass;
 using OverPass.Utility;
+using System.Collections;
+using NetTopologySuite.Geometries;
+using NetTopologySuite.Operation.Buffer;
 
 namespace OverPass
 {
-    public class OverPassAPI : OverPass
-	{
-        public OverPassPoint? Places { get; set; }
-        public OverPassPoint? PoI { get; set; }
-        public OverPassPoint? PoFW { get; set; }
-        public OverPassPoint? Natural { get; set; }
-        public OverPassPoint? Traffic { get; set; }
-        public OverPassPoint? Transport { get; set; }
-        public OverPassLine? Roads { get; set; }
-        public OverPassLine? Railways { get; set; }
-        public OverPassLine? Waterways { get; set; }
-        public OverPassPolygon? Buildings { get; set; }
-        public OverPassPolygon? Landuse { get; set; }
-        public OverPassPolygon? Water { get; set; }
+    public class OverPassParameters
+    {
+        public double Buffer { get; set; } = 10;
+        public string OverPassUrl { get; set; } = "https://overpass-api.de/api/interpreter";
+        public string BBox { get; set; } = "41.888221345535,12.484095096588,41.895009993745,12.495414018631"; // Rome
+        public int SRCode { get; set; } = 3857;
+        public bool ToWebMercator { get; set; } = false;
+        public NetTopologySuite.Geometries.Geometry? Geom { get; set; }
+        public Dictionary<string, List<string>>? Query { get; set; }
+    }
 
-        public OverPassAPI(string bbox) : base(bbox) => this.Init(this.BBox);
-        public OverPassAPI(string bbox, Dictionary<string, List<string>>? query) : this(bbox) => this.Query = query;
-        public OverPassAPI(NetTopologySuite.Geometries.Geometry filter) : base(filter) => this.Init(this.BBox);
-        public OverPassAPI(NetTopologySuite.Geometries.Geometry filter, Dictionary<string, List<string>>? query) : this(filter) => this.Query = query;
-        public OverPassAPI(NetTopologySuite.Geometries.Geometry filter, string bbox) : base(bbox) => this.Init(bbox);
-        
-        private void Init(string bbox)
-        {
-            /** Point */
-            this.Places = new(bbox, TagType.PLACES);
-            this.PoI = new(bbox, TagType.POI);
-            this.PoFW = new(bbox, TagType.POFW);
-            this.Natural = new(bbox, TagType.NATURAL);
-            this.Traffic = new(bbox, TagType.TRAFFIC);
-            this.Transport = new(bbox, TagType.TRANSPORT);
+    public interface IOverPassAPIInterface
+    {
+        abstract Task<List<NetTopologySuite.Features.Feature>?> Features();
+        void SetFilter(OverPassParameters parameters);
+    }
 
-            /** LineString */
-            this.Roads = new(bbox, TagType.ROADS);
-            this.Railways = new(bbox, TagType.RAILWAYS);
-            this.Waterways = new(bbox, TagType.WATERWAYS);
+    public class OverPassAPI : IOverPassAPIInterface
+    {
+        /** Point */
+        public OverPassPoint Places { get; set; } = new(TagType.PLACES);
+        public OverPassPoint PoI { get; set; } = new(TagType.POI);
+        public OverPassPoint PoFW { get; set; } = new (TagType.POFW);
+        public OverPassPoint Natural { get; set; } = new(TagType.NATURAL);
+        public OverPassPoint Traffic { get; set; } = new(TagType.TRAFFIC);
+        public OverPassPoint Transport { get; set; } = new(TagType.TRANSPORT);
+        /** LineString */
+        public OverPassLine Roads { get; set; } = new(TagType.ROADS);
+        public OverPassLine Railways { get; set; } = new(TagType.RAILWAYS);
+        public OverPassLine Waterways { get; set; } = new(TagType.WATERWAYS);
+        /** Polygons */
+        public OverPassPolygon Buildings { get; set; } = new(TagType.BUILDINGS);
+        public OverPassPolygon Landuse { get; set; } = new(TagType.LANDUSE);
+        public OverPassPolygon Water { get; set; } = new(TagType.WATER);
 
-            /** Polygons */
-            this.Buildings = new(bbox, TagType.BUILDINGS);
-            this.Landuse = new(bbox, TagType.LANDUSE);
-            this.Water = new(bbox, TagType.WATER);
+        public OverPassParameters? Parameters { get; set; }
 
-            this.AllTags.Add(new(this.BBox, "natural", "*"));
-            this.AllTags.Add(new(this.BBox, "place", "*"));
-            this.AllTags.Add(new(this.BBox, "amenity", "*"));
-            this.AllTags.Add(new(this.BBox, "religion", "*"));
-            this.AllTags.Add(new(this.BBox, "denomination", "*"));
-            this.AllTags.Add(new(this.BBox, "office", "*"));
-            this.AllTags.Add(new(this.BBox, "landuse", "*"));
-            this.AllTags.Add(new(this.BBox, "leisure", "*"));
-            this.AllTags.Add(new(this.BBox, "sport", "*"));
-            this.AllTags.Add(new(this.BBox, "shop", "*"));
-            this.AllTags.Add(new(this.BBox, "tourism", "*"));
-            this.AllTags.Add(new(this.BBox, "tourist", "*"));
-            this.AllTags.Add(new(this.BBox, "man_made", "*"));
-            this.AllTags.Add(new(this.BBox, "emergency", "*"));
-            this.AllTags.Add(new(this.BBox, "highway", "*"));
-            this.AllTags.Add(new(this.BBox, "waterway", "*"));
-            this.AllTags.Add(new(this.BBox, "railway", "*"));
-            this.AllTags.Add(new(this.BBox, "military", "*"));
-            this.AllTags.Add(new(this.BBox, "aeroway", "*"));
-            this.AllTags.Add(new(this.BBox, "aerialway", "*"));
-            this.AllTags.Add(new(this.BBox, "boundary", "*"));
-
-            this.Tags = new Dictionary<TagType, List<OTag>>() {
-                { this.Type, this.AllTags }
-            };
+        public OverPassAPI() {
+            this.SetFilter(new OverPassParameters());
         }
-        
+
+        public virtual async Task<List<NetTopologySuite.Features.Feature>?> Features()
+        {
+            List<NetTopologySuite.Features.Feature>? result = new();
+
+            string? q = this.Places.GetPayload();
+            q += this.PoI.GetPayload();
+            q += this.PoFW.GetPayload();
+            q += this.Natural.GetPayload();
+            q += this.Traffic.GetPayload();
+            q += this.Transport.GetPayload();
+            q += this.Roads.GetPayload();
+            q += this.Railways.GetPayload();
+            q += this.Waterways.GetPayload();
+            q += this.Buildings.GetPayload();
+            q += this.Buildings.GetPayload();
+            q += this.Landuse.GetPayload();
+            q += this.Water.GetPayload();
+
+            return await OverPassUtility.GetFeatures(this.Parameters!.OverPassUrl!,
+                                                     q,
+                                                     this.Parameters!.SRCode,
+                                                     this.Parameters!.Buffer,
+                                                     this.Parameters!.ToWebMercator);
+        }
+
+        public void SetFilter(OverPassParameters parameters)
+        {
+            this.Parameters = parameters;
+
+            if (this.Parameters.Geom is not null)
+                this.Parameters.BBox = OverPassUtility.GetBBoxFromGeometry(this.Parameters.Geom);
+
+            this.Parameters.SRCode = this.Parameters.ToWebMercator == true ? 3857 : 4326;
+
+            this.Places.SetFilter(this.Parameters);
+            this.PoI.SetFilter(this.Parameters);
+            this.PoFW.SetFilter(this.Parameters);
+            this.Natural.SetFilter(this.Parameters);
+            this.Traffic.SetFilter(this.Parameters);
+            this.Transport.SetFilter(this.Parameters);
+            this.Roads.SetFilter(this.Parameters);
+            this.Railways.SetFilter(this.Parameters);
+            this.Waterways.SetFilter(this.Parameters);
+            this.Buildings.SetFilter(this.Parameters);
+            this.Landuse.SetFilter(this.Parameters);
+            this.Water.SetFilter(this.Parameters);
+        }
     }
 }
 

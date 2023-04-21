@@ -7,6 +7,7 @@ using OverPass;
 using static System.Reflection.Metadata.BlobBuilder;
 using ProjNet.CoordinateSystems;
 using ProjNet.CoordinateSystems.Transformations;
+using System.Globalization;
 
 namespace OverPass.Utility
 {
@@ -195,6 +196,117 @@ namespace OverPass.Utility
             }
 
             return a;
+        }
+
+        private static async Task<Root?> FetchOverpassData(string url, string payload)
+        {
+            string QueryStart = "[out:json][timeout:25];(";
+            string QueryEnd = ");out geom;>;out body qt;";
+            string q = $"{QueryStart}{payload}{QueryEnd}";
+
+            try
+            {
+                string? r = await OverPassUtility.RunOverPassQuery(url, q);
+                return OverPassUtility.JSonDeserializeResponse(r!);
+            }
+            catch (Exception e)
+            {
+                // Log Error
+                Console.WriteLine(e.Message);
+                return null;
+            }
+        }
+
+        /** create feature from element */
+        private static Feature CreateFeature(Element e,
+                                             NetTopologySuite.Geometries.Geometry geom,
+                                             int srCode,
+                                             double buffer)
+        {
+            GeometryFactory gf = OverPassUtility.CreateGeometryFactory(srCode);
+            Feature? f = new();
+            AttributesTable properties = OverPassUtility.GetProperties(e);
+            f.Attributes = properties;
+            f.Geometry = gf.CreateGeometry(geom);
+            f.BoundingBox = OverPassUtility.GetBBox(e);
+            /** add buffer to features */
+            if (buffer > 0)
+                f.Geometry = f.Geometry.Buffer(buffer, 8);
+            f.BoundingBox = f.Geometry.EnvelopeInternal;
+            return f;
+        }
+
+        /** create geometries */
+        public static async Task<List<Feature>?> GetFeatures(string url,
+                                                             string payload,
+                                                             int srCode,
+                                                             double buffer,
+                                                             bool toWebMercator = true)
+        {
+            if (url is not null && payload is not null)
+            {
+                Root? resp = await FetchOverpassData(url, payload);
+
+                if (resp is not null)
+                {
+
+                    List<Element> nodes = resp!.elements!.Where(e => e.type == "node").ToList();
+                    List<Element> ways = resp!.elements!.Where(e => e.type == "way").ToList();
+                    List<Element> lines = ways.Where(e =>
+                    {
+                        /** create array coordinates */
+                        Coordinate[]? coordinates = OverPassUtility.GetCoordinates(e, toWebMercator);
+                        LineString line = new(coordinates);
+                        return !line.IsClosed;
+                    }).ToList();
+
+                    List<Element> polys = ways.Except(lines).ToList();
+
+                    /** get all points */
+                    List<Feature>? features = nodes.Select(e =>
+                    {
+                        double[]? coords = new double[] { Convert.ToDouble(e.lon), Convert.ToDouble(e.lat) };
+                        NetTopologySuite.Geometries.Point geom = (NetTopologySuite.Geometries.Point)new(OverPassUtility.GetPoint(coords, toWebMercator));
+                        Feature f = CreateFeature(e, geom, srCode, buffer);
+                        return f;
+                    }).ToList();
+
+                    /** get all lines and polygons */
+                    List<Feature>? featuresLines = lines.Select(e =>
+                    {
+                        /** create array coordinates */
+                        Coordinate[]? coordinates = OverPassUtility.GetCoordinates(e, toWebMercator);
+                        LineString line = new(coordinates);
+                        Feature f = CreateFeature(e, line, srCode, buffer);
+                        return f;
+                    }).ToList();
+
+                    List<Feature>? featuresPoly = polys.Select(e =>
+                    {
+                        /** create array coordinates */
+                        Coordinate[]? coordinates = OverPassUtility.GetCoordinates(e, toWebMercator);
+                        LinearRing lineRing = new(coordinates);
+                        Polygon poly = new(lineRing);
+                        Feature f = CreateFeature(e, poly, srCode, buffer);
+                        return f;
+                    }).ToList();
+
+                    /** union features */
+                    features.AddRange(featuresLines);
+                    features.AddRange(featuresPoly);
+                    /** remove empty geometries */
+                    features = features.Where(f => !f.Geometry!.IsEmpty).ToList();
+                    return features;
+                }
+            }
+
+            return null;
+        }
+
+        public static string GetBBoxFromGeometry(NetTopologySuite.Geometries.Geometry filter)
+        {
+            NetTopologySuite.Geometries.Envelope Env = filter.EnvelopeInternal;
+            return String.Format(CultureInfo.GetCultureInfo("en-US"), "{0},{1},{2},{3}", Env.MinY, Env.MinX, Env.MaxY, Env.MaxX);
         }
     }
 }
